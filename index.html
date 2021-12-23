@@ -34,12 +34,12 @@
             data: {
               lokasi_ayat: "",
               ayat: "",
-              isLoading: true
+              isLoading: false
             },
             mounted(){
               this.loadAyat()
               this.loadBg()
-              setTimeout(() => this.isLoading = false, 500);
+              //setTimeout(() => this.isLoading = false, 500);
             },
             methods: {
                 async loadAyat(){
