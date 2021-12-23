@@ -10,10 +10,16 @@
 </head>
 <body class="h-screen overflow-hidden flex items-center justify-center" style="background: #edf2f7;">
     <div id="app">
-      <div class="max-w-md py-4 px-8 bg-white shadow-lg rounded-lg my-20" style="margin:10px">
+      <div v-bind:class="{ 'animate-pulse': isLoading }" class=" max-w-md py-4 px-8 bg-white shadow-lg rounded-lg my-20" style="margin:10px">
         <div>
-          <h2 class="text-gray-800 text-3xl font-semibold">{{ lokasi_ayat }}</h2>
-          <p class="mt-2 text-gray-600">{{ ayat }}</p>
+          <h2 class="text-gray-800 text-3xl font-semibold">
+            <div v-if="isLoading" class="h-2 bg-gray-200 rounded"></div>
+            <div v-else>{{ lokasi_ayat }}</div>
+          </h2>
+          <p class="mt-2 text-gray-600">
+            <div v-if="isLoading" class="h-2 bg-gray-200 rounded"></div>
+            <div v-else>{{ ayat }}</div>
+          </p>
         </div>
         <div class="flex justify-end mt-4">
           <a href="#" class="text-sm font-medium text-indigo-500">GBT Firman Kudus</a>
@@ -28,10 +34,12 @@
             data: {
               lokasi_ayat: "",
               ayat: "",
+              isLoading: true
             },
             mounted(){
-                this.loadAyat()
-                this.loadBg()
+              this.loadAyat()
+              this.loadBg()
+              setTimeout(() => this.isLoading = false, 500);
             },
             methods: {
                 async loadAyat(){
