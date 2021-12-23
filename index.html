@@ -1,64 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ayat Profetik</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.0"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ayat Profetik</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.0"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css"
+    integrity="sha512-wnea99uKIC3TJF7v4eKk4Y+lMz2Mklv18+r4na2Gn1abDRPPOeef95xTzdwGD9e6zXJBteMIhZ1+68QC5byJZw=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
+
 <body class="h-screen overflow-hidden flex items-center justify-center" style="background: #edf2f7;">
-    <div id="app">
-      <div v-bind:class="{ 'animate-pulse': isLoading }" class=" max-w-md py-4 px-8 bg-white shadow-lg rounded-lg my-20" style="margin:10px">
-        <div>
-          <h2 class="text-gray-800 text-3xl font-semibold">
-            <div v-if="isLoading" class="h-2 bg-gray-200 rounded"></div>
-            <div v-else>{{ lokasi_ayat }}</div>
-          </h2>
-          <p class="mt-2 text-gray-600">
-            <div v-if="isLoading" class="h-2 bg-gray-200 rounded"></div>
-            <div v-else>{{ ayat }}</div>
-          </p>
-        </div>
-        <div class="flex justify-end mt-4">
-          <a href="#" class="text-sm font-medium text-indigo-500">GBT Firman Kudus</a>
-        </div>
+  <div id="app">
+    <div v-bind:class="{ 'animate-pulse': isLoading }" class=" max-w-md py-4 px-8 bg-white shadow-lg rounded-lg my-20"
+      style="margin:10px">
+      <div>
+        <h2 class="text-gray-800 text-3xl font-semibold">
+          <div v-if="isLoading" class="h-2 bg-gray-200 rounded"></div>
+          <div v-else>{{ lokasi_ayat }}</div>
+        </h2>
+        <p class="mt-2 text-gray-600">
+          <div v-if="isLoading" class="h-2 bg-gray-200 rounded"></div>
+          <div v-else>{{ ayat }}</div>
+        </p>
+      </div>
+      <div class="flex justify-end mt-4">
+        <a href="#" class="text-sm font-medium text-indigo-500">GBT Firman Kudus</a>
       </div>
     </div>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-          new Vue({
-            el: '#app',
-            data: {
-              lokasi_ayat: "",
-              ayat: "",
-              isLoading: false
-            },
-            mounted(){
-              this.loadAyat()
-              this.loadBg()
-              //setTimeout(() => this.isLoading = false, 500);
-            },
-            methods: {
-                async loadAyat(){
-                    let ayat = await axios.get("./ayat.json") 
-                    ayat = ayat.data
-                    let randomNum = Math.floor(Math.random() * ayat.length);
+  </div>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      new Vue({
+        el: '#app',
+        data: {
+          lokasi_ayat: "",
+          ayat: "",
+          isLoading: false
+        },
+        mounted() {
+          this.loadAyat()
+          this.loadBg()
+          //setTimeout(() => this.isLoading = false, 500);
+        },
+        methods: {
+          async loadAyat() {
+            let ayat = await axios.get("./ayat.json")
+            ayat = ayat.data
+            let randomNum = Math.floor(Math.random() * ayat.length);
 
-                    this.lokasi_ayat = ayat[randomNum][0]
-                    this.ayat = ayat[randomNum][1]
-                },
-                async loadBg(){
-                    let color = await axios.get("./color.json") 
-                    color = color.data
-                    let randomNum = Math.floor(Math.random() * color.length);
-                    document.body.style.backgroundColor = color[randomNum];
-                }
-            }
-          })
-        })
-    </script>
+            this.lokasi_ayat = ayat[randomNum][0]
+            this.ayat = ayat[randomNum][1]
+          },
+          async loadBg() {
+            let color = await axios.get("./color.json")
+            color = color.data
+            let randomNum = Math.floor(Math.random() * color.length);
+            document.body.style.backgroundColor = color[randomNum];
+          }
+        }
+      })
+    })
+  </script>
 </body>
 </html>
