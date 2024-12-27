@@ -33,6 +33,24 @@
   </div>
   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <script>
+   function generateSeedBasedOnTime() {
+      // Dapatkan waktu saat ini dalam format menit dan detik
+      let currentDate = new Date();
+      let minutes = currentDate.getMinutes(); // Mendapatkan menit
+      let seconds = currentDate.getSeconds(); // Mendapatkan detik
+    
+      // Gabungkan menit dan detik untuk menghasilkan seed unik
+      let seed = minutes * 1000 + seconds; // Mengkombinasikan menit dan detik untuk menjadi seed
+    
+      return seed;
+    }
+    
+    function seededRandom(seed) {
+      // Algoritma PRNG (Pseudo-Random Number Generator) sederhana: xorshift
+      let x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    }
+    
     document.addEventListener('DOMContentLoaded', function () {
       new Vue({
         el: '#app',
@@ -44,22 +62,41 @@
         mounted() {
           this.loadAyat()
           this.loadBg()
-          //setTimeout(() => this.isLoading = false, 500);
         },
         methods: {
           async loadAyat() {
-            let ayat = await axios.get("./ayat.json")
-            ayat = ayat.data
-            let randomNum = Math.floor(Math.random() * ayat.length);
-
-            this.lokasi_ayat = ayat[randomNum][0]
-            this.ayat = ayat[randomNum][1]
+            this.isLoading = true;
+    
+            let ayat = await axios.get("./ayat.json");
+            ayat = ayat.data;
+    
+            // Dapatkan seed berdasarkan menit dan detik
+            let seed = generateSeedBasedOnTime();
+            
+            // Gunakan seed untuk menghasilkan angka acak
+            let randomNum = Math.floor(seededRandom(seed) * ayat.length);
+            let randomDelay = Math.random() * 1000; // Random delay antara 0 dan 1 detik
+            
+            setTimeout(() => {
+              this.lokasi_ayat = ayat[randomNum][0];
+              this.ayat = ayat[randomNum][1];
+              this.isLoading = false;
+            }, randomDelay);
           },
+    
           async loadBg() {
-            let color = await axios.get("./color.json")
-            color = color.data
-            let randomNum = Math.floor(Math.random() * color.length);
-            document.body.style.backgroundColor = color[randomNum];
+            let color = await axios.get("./color.json");
+            color = color.data;
+    
+            // Dapatkan seed berdasarkan menit dan detik
+            let seed = generateSeedBasedOnTime();
+            
+            let randomNum = Math.floor(seededRandom(seed) * color.length);
+            let randomDelay = Math.random() * 1000;
+            
+            setTimeout(() => {
+              document.body.style.backgroundColor = color[randomNum];
+            }, randomDelay);
           }
         }
       })
