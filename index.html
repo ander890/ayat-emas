@@ -67,21 +67,19 @@
           async loadAyat() {
             this.isLoading = true;
     
-            let ayat = await axios.get("./ayat.json");
-            ayat = ayat.data;
-    
-            // Dapatkan seed berdasarkan menit dan detik
-            let seed = generateSeedBasedOnTime();
-            
-            // Gunakan seed untuk menghasilkan angka acak
-            let randomNum = Math.floor(seededRandom(seed) * ayat.length);
-            let randomDelay = Math.random() * 1000; // Random delay antara 0 dan 1 detik
-            
-            setTimeout(() => {
-              this.lokasi_ayat = ayat[randomNum][0];
-              this.ayat = ayat[randomNum][1];
+            try {
+              let response = await axios.get("/api/ayat/random");
+              let randomDelay = Math.random() * 1000; // Random delay antara 0 dan 1 detik
+              
+              setTimeout(() => {
+                this.lokasi_ayat = response.data.lokasi;
+                this.ayat = response.data.teks;
+                this.isLoading = false;
+              }, randomDelay);
+            } catch (error) {
+              console.error('Error loading ayat:', error);
               this.isLoading = false;
-            }, randomDelay);
+            }
           },
     
           async loadBg() {

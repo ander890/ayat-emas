@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Ayat Profetik</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css"
+    integrity="sha512-wnea99uKIC3TJF7v4eKk4Y+lMz2Mklv18+r4na2Gn1abDRPPOeef95xTzdwGD9e6zXJBteMIhZ1+68QC5byJZw=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    .fade-enter-active, .fade-leave-active {
+      transition: opacity 0.3s;
+    }
+    .fade-enter, .fade-leave-to {
+      opacity: 0;
+    }
+    .modal-enter-active, .modal-leave-active {
+      transition: opacity 0.3s;
+    }
+    .modal-enter, .modal-leave-to {
+      opacity: 0;
+    }
+    .modal-content-enter-active, .modal-content-leave-active {
+      transition: all 0.3s;
+    }
+    .modal-content-enter, .modal-content-leave-to {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    .toast-enter-active {
+      transition: all 0.3s ease-out;
+    }
+    .toast-leave-active {
+      transition: all 0.3s ease-in;
+    }
+    .toast-enter {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    .toast-leave-to {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen py-8">
+  <div id="app" class="container mx-auto px-4 max-w-6xl">
+    <!-- Toast Notifications -->
+    <div class="fixed top-4 right-4 z-50 space-y-2" style="max-width: 400px;">
+      <transition-group name="toast" tag="div">
+        <div
+          v-for="toast in toasts"
+          :key="toast.id"
+          :class="[
+            'px-4 py-3 rounded-lg shadow-lg flex items-center justify-between',
+            toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+          ]"
+        >
+          <span>{{ toast.message }}</span>
+          <button
+            @click="removeToast(toast.id)"
+            class="ml-4 text-white hover:text-gray-200 focus:outline-none"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </transition-group>
+    </div>
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-800 mb-2">Admin Ayat Profetik</h1>
+          <p class="text-gray-600">Kelola ayat-ayat untuk aplikasi Ayat Profetik</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Form -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">Tambah Ayat Baru</h2>
+      <form @submit.prevent="saveAyat" class="space-y-4">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-sm font-medium text-gray-700">Lokasi Ayat</label>
+          </div>
+          <input
+            v-model="form.lokasi"
+            type="text"
+            required
+            placeholder="Contoh: Matius 5:16"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Teks Ayat</label>
+          <button
+            type="button"
+            @click="repairAyat(false)"
+            :disabled="repairing || !form.lokasi"
+            class="text-sm px-3 py-2 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
+            style="background-color: #f97316; color: white;"
+            onmouseover="this.style.backgroundColor='#ea580c'"
+            onmouseout="this.style.backgroundColor='#f97316'"
+            >
+            <span v-if="repairing">Memperbaiki...</span>
+            <span v-else>Load Ayat dari Alkitab.mobi</span>
+            </button>
+            <br><br>
+          <textarea
+            v-model="form.teks"
+            required
+            rows="4"
+            placeholder="Masukkan teks ayat..."
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          ></textarea>
+        </div>
+        <div class="flex gap-3">
+          <button
+            type="submit"
+            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition"
+          >
+            Tambah
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Edit Modal -->
+    <transition name="modal">
+      <div v-if="showEditModal" class="fixed inset-0 z-50 overflow-y-auto" @click.self="closeEditModal">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+          <!-- Backdrop -->
+          <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"></div>
+
+          <!-- Modal Panel -->
+          <transition name="modal-content">
+            <div v-if="showEditModal" class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-xl font-semibold text-gray-900">Edit Ayat</h3>
+                  <button
+                    @click="closeEditModal"
+                    class="text-gray-400 hover:text-gray-500 focus:outline-none"
+                  >
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <form @submit.prevent="saveAyat">
+                  <div class="space-y-4">
+                    <div>
+                      <div class="flex items-center justify-between mb-2">
+                        <label class="block text-sm font-medium text-gray-700">Lokasi Ayat</label>
+                        <button
+                          type="button"
+                          @click="repairAyat(true)"
+                          :disabled="repairing || !form.lokasi"
+                          class="text-sm px-3 py-1 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          style="background-color: #f97316; color: white;"
+                          onmouseover="this.style.backgroundColor='#ea580c'"
+                          onmouseout="this.style.backgroundColor='#f97316'"
+                        >
+                          <span v-if="repairing">Memperbaiki...</span>
+                          <span v-else>🔧 Repair</span>
+                        </button>
+                      </div>
+                      <input
+                        v-model="form.lokasi"
+                        type="text"
+                        required
+                        placeholder="Contoh: Matius 5:16"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-2">Teks Ayat</label>
+                      <textarea
+                        v-model="form.teks"
+                        required
+                        rows="6"
+                        placeholder="Masukkan teks ayat..."
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      ></textarea>
+                    </div>
+                  </div>
+                </form>
+              </div>
+              <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  @click="saveAyat"
+                  type="button"
+                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Update
+                </button>
+                <button
+                  @click="closeEditModal"
+                  type="button"
+                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </div>
+    </transition>
+
+
+    <!-- Loading Indicator -->
+    <div v-if="loading" class="text-center py-8">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <p class="mt-2 text-gray-600">Memuat data...</p>
+    </div>
+
+    <!-- Ayat List -->
+    <div v-else class="bg-white rounded-lg shadow-md overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-xl font-semibold">Daftar Ayat ({{ ayatList.length }})</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lokasi</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teks</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr v-for="(ayat, index) in ayatList" :key="index" class="hover:bg-gray-50">
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ index + 1 }}</td>
+              <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ ayat[0] }}</td>
+              <td class="px-6 py-4 text-sm text-gray-700">
+                <div class="max-w-md">{{ ayat[1] }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button
+                  @click="editAyat(index)"
+                  class="text-blue-600 hover:text-blue-900 mr-4"
+                >
+                  Edit
+                </button>
+                <button
+                  @click="confirmDelete(index)"
+                  class="text-red-600 hover:text-red-900"
+                >
+                  Hapus
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-if="ayatList.length === 0" class="text-center py-8 text-gray-500">
+        Tidak ada ayat. Tambahkan ayat baru untuk memulai.
+      </div>
+    </div>
+
+    <!-- Analysis Result Modal -->
+    <transition name="modal">
+      <div v-if="showAnalysisModal" class="fixed inset-0 z-50 overflow-y-auto" @click.self="closeAnalysisModal">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+          <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"></div>
+          <transition name="modal-content">
+            <div v-if="showAnalysisModal" class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+              <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-xl font-semibold text-gray-900">Hasil Analisis AI</h3>
+                  <button
+                    @click="closeAnalysisModal"
+                    class="text-gray-400 hover:text-gray-500 focus:outline-none"
+                  >
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div class="space-y-4">
+                  <div v-if="analysisResult" class="space-y-3">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p class="text-red-800 font-medium">❌ Ayat yang dihapus: {{ analysisResult.removed || 0 }}</p>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p class="text-blue-800 font-medium">📊 Total ayat sekarang: {{ analysisResult.total || 0 }}</p>
+                    </div>
+                  </div>
+                  <div v-if="generatedAyat && generatedAyat.length > 0" class="space-y-3">
+                    <h4 class="font-semibold text-gray-700">Ayat yang di-generate:</h4>
+                    <div class="max-h-64 overflow-y-auto space-y-2">
+                      <div v-for="(ayat, index) in generatedAyat" :key="index" class="border border-gray-200 rounded-lg p-3">
+                        <p class="font-medium text-gray-900">{{ ayat.lokasi }}</p>
+                        <p class="text-sm text-gray-600 mt-1">{{ ayat.teks }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  @click="closeAnalysisModal"
+                  type="button"
+                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </div>
+    </transition>
+  </div>
+
+  <script>
+    // Helper function untuk mendapatkan password dari URL
+    function getPasswordFromUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('pass') || '';
+    }
+
+    // Helper function untuk menambahkan password ke URL API
+    function addPasswordToUrl(url) {
+      const pass = getPasswordFromUrl();
+      const separator = url.includes('?') ? '&' : '?';
+      return `${url}${separator}pass=${pass}`;
+    }
+
+    new Vue({
+      el: '#app',
+      data: {
+        ayatList: [],
+        loading: false,
+        editingIndex: null,
+        showEditModal: false,
+        analyzing: false,
+        generating: false,
+        generatingSingle: false,
+        repairing: false,
+        repairingAll: false,
+        showAnalysisModal: false,
+        analysisResult: null,
+        generatedAyat: [],
+        toasts: [],
+        toastIdCounter: 0,
+        form: {
+          lokasi: '',
+          teks: ''
+        },
+        message: {
+          text: '',
+          type: 'success'
+        }
+      },
+      mounted() {
+        this.loadAyat();
+      },
+      methods: {
+        async loadAyat() {
+          this.loading = true;
+          try {
+            const response = await axios.get('/api/ayat');
+            this.ayatList = response.data;
+          } catch (error) {
+            this.showMessage('Error memuat ayat: ' + error.message, 'error');
+          } finally {
+            this.loading = false;
+          }
+        },
+        async saveAyat() {
+          try {
+            if (this.editingIndex !== null) {
+              // Update existing
+              const response = await axios.put(addPasswordToUrl(`/api/ayat/${this.editingIndex}`), {
+                lokasi: this.form.lokasi,
+                teks: this.form.teks
+              });
+              // Update list secara lokal
+              this.ayatList[this.editingIndex] = [this.form.lokasi, this.form.teks];
+              this.showToast('Ayat berhasil diupdate', 'success');
+              this.closeEditModal();
+            } else {
+              // Create new
+              const response = await axios.post(addPasswordToUrl('/api/ayat'), {
+                lokasi: this.form.lokasi,
+                teks: this.form.teks
+              });
+              // Tambahkan ke list secara lokal
+              this.ayatList.push([this.form.lokasi, this.form.teks]);
+              this.showToast('Ayat berhasil ditambahkan', 'success');
+              this.resetForm();
+            }
+          } catch (error) {
+            this.showToast('Error menyimpan ayat: ' + (error.response?.data?.error || error.message), 'error');
+          }
+        },
+        editAyat(index) {
+          this.editingIndex = index;
+          this.form.lokasi = this.ayatList[index][0];
+          this.form.teks = this.ayatList[index][1];
+          this.showEditModal = true;
+        },
+        closeEditModal() {
+          this.showEditModal = false;
+          this.editingIndex = null;
+          this.resetForm();
+        },
+        resetForm() {
+          this.form.lokasi = '';
+          this.form.teks = '';
+          this.editingIndex = null;
+        },
+        confirmDelete(index) {
+          if (confirm(`Apakah Anda yakin ingin menghapus ayat "${this.ayatList[index][0]}"?`)) {
+            this.deleteAyat(index);
+          }
+        },
+        async deleteAyat(index) {
+          try {
+            await axios.delete(addPasswordToUrl(`/api/ayat/${index}`));
+            // Hapus dari list secara lokal tanpa reload
+            this.ayatList.splice(index, 1);
+            this.showToast('Ayat berhasil dihapus', 'success');
+          } catch (error) {
+            this.showToast('Error menghapus ayat: ' + (error.response?.data?.error || error.message), 'error');
+          }
+        },
+        showToast(message, type = 'success') {
+          const toast = {
+            id: this.toastIdCounter++,
+            message,
+            type
+          };
+          this.toasts.push(toast);
+          
+          // Auto remove setelah 5 detik
+          setTimeout(() => {
+            this.removeToast(toast.id);
+          }, 5000);
+        },
+        removeToast(id) {
+          const index = this.toasts.findIndex(t => t.id === id);
+          if (index > -1) {
+            this.toasts.splice(index, 1);
+          }
+        },
+        showMessage(text, type = 'success') {
+          // Keep untuk backward compatibility, tapi gunakan showToast
+          this.showToast(text, type);
+        },
+        async analyzeAyat() {
+          if (!confirm('Apakah Anda yakin ingin menganalisis ayat dengan AI? Ini akan menghapus ayat yang bukan profetik/sesuai dengan kriteria ayat profetik.')) {
+            return;
+          }
+
+          this.analyzing = true;
+          try {
+            const response = await axios.post(addPasswordToUrl('/api/ayat/analyze'));
+            this.analysisResult = response.data;
+            this.showAnalysisModal = true;
+            this.showMessage(`Analisis selesai! ${response.data.removed} ayat yang tidak profetik telah dihapus.`, 'success');
+            this.loadAyat();
+          } catch (error) {
+            this.showMessage('Error saat analisis: ' + (error.response?.data?.error || error.message), 'error');
+          } finally {
+            this.analyzing = false;
+          }
+        },
+        async generateAyat() {
+          this.generating = true;
+          this.generatedAyat = [];
+          try {
+            const response = await axios.post(addPasswordToUrl('/api/ayat/generate'), {
+              count: 5
+            });
+            this.generatedAyat = response.data.ayat || [];
+            this.showAnalysisModal = true;
+            this.analysisResult = null;
+            
+            // Tanyakan apakah ingin menambahkan ayat yang di-generate
+            if (this.generatedAyat.length > 0) {
+              const addConfirm = confirm(`Berhasil generate ${this.generatedAyat.length} ayat profetik. Apakah Anda ingin menambahkan semuanya ke database?`);
+              if (addConfirm) {
+                for (const ayat of this.generatedAyat) {
+                  try {
+                    await axios.post(addPasswordToUrl('/api/ayat'), {
+                      lokasi: ayat.lokasi,
+                      teks: ayat.teks
+                    });
+                  } catch (err) {
+                    console.error('Error adding ayat:', err);
+                  }
+                }
+                this.showMessage(`${this.generatedAyat.length} ayat berhasil ditambahkan!`, 'success');
+                this.loadAyat();
+              }
+            }
+          } catch (error) {
+            this.showMessage('Error saat generate ayat: ' + (error.response?.data?.error || error.message), 'error');
+          } finally {
+            this.generating = false;
+          }
+        },
+        closeAnalysisModal() {
+          this.showAnalysisModal = false;
+          this.analysisResult = null;
+          this.generatedAyat = [];
+        },
+        async repairAyat(isEdit = false) {
+          if (!this.form.lokasi) {
+            this.showMessage('Silakan masukkan lokasi ayat terlebih dahulu', 'error');
+            return;
+          }
+
+          this.repairing = true;
+          try {
+            // Selalu hanya ambil teks, tidak langsung update
+            const response = await axios.post(addPasswordToUrl('/api/ayat/repair'), {
+              lokasi: this.form.lokasi
+            });
+            
+            // Update form dengan teks yang diperbaiki (user bisa review dulu)
+            this.form.teks = response.data.teks;
+            this.showMessage('Ayat berhasil diambil dari alkitab.mobi. Silakan review dan simpan.', 'success');
+          } catch (error) {
+            this.showMessage('Error saat memperbaiki ayat: ' + (error.response?.data?.error || error.message), 'error');
+          } finally {
+            this.repairing = false;
+          }
+        },
+        async repairAllAyat() {
+          if (!confirm(`Apakah Anda yakin ingin memperbaiki semua ayat? Ini akan mengambil ulang teks dari alkitab.mobi untuk semua ${this.ayatList.length} ayat. Proses ini mungkin memakan waktu beberapa menit.`)) {
+            return;
+          }
+
+          this.repairingAll = true;
+          try {
+            const response = await axios.post(addPasswordToUrl('/api/ayat/repair-all'));
+            
+            const result = response.data;
+            let message = `Repair all selesai! Berhasil: ${result.success}, Gagal: ${result.failed}, Dihapus: ${result.removed || 0} dari ${result.total} ayat. Total sekarang: ${result.totalAfter || result.total - (result.removed || 0)} ayat.`;
+            
+            if (result.errors && result.errors.length > 0) {
+              const removedErrors = result.errors.filter(e => e.action === 'removed').slice(0, 10);
+              const failedErrors = result.errors.filter(e => e.action === 'failed').slice(0, 10);
+              
+              if (removedErrors.length > 0) {
+                message += `\n\nAyat yang dihapus (format tidak valid):\n${removedErrors.map(e => `- ${e.lokasi}`).join('\n')}`;
+                if (result.errors.filter(e => e.action === 'removed').length > 10) {
+                  message += `\n...dan ${result.errors.filter(e => e.action === 'removed').length - 10} lainnya`;
+                }
+              }
+              
+              if (failedErrors.length > 0) {
+                message += `\n\nAyat yang gagal:\n${failedErrors.map(e => `- ${e.lokasi}: ${e.error}`).join('\n')}`;
+                if (result.errors.filter(e => e.action === 'failed').length > 10) {
+                  message += `\n...dan ${result.errors.filter(e => e.action === 'failed').length - 10} lainnya`;
+                }
+              }
+            }
+            
+            this.showMessage(message, result.failed === 0 ? 'success' : 'error');
+            this.loadAyat();
+          } catch (error) {
+            this.showMessage('Error saat repair all: ' + (error.response?.data?.error || error.message), 'error');
+          } finally {
+            this.repairingAll = false;
+          }
+        },
+        async generateSingleAyat() {
+          this.generatingSingle = true;
+          try {
+            const response = await axios.post(addPasswordToUrl('/api/ayat/generate'), {
+              count: 1
+            });
+            
+            if (response.data.ayat && response.data.ayat.length > 0) {
+              const generated = response.data.ayat[0];
+              // Isi form dengan hasil generate, user bisa review dan edit
+              this.form.lokasi = generated.lokasi;
+              this.form.teks = generated.teks;
+              this.showMessage('Ayat berhasil di-generate! Silakan review dan edit jika perlu sebelum menyimpan.', 'success');
+              
+              // Scroll ke form jika perlu
+              const formElement = document.querySelector('form');
+              if (formElement) {
+                formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            } else {
+              this.showMessage('Tidak ada ayat yang di-generate', 'error');
+            }
+          } catch (error) {
+            this.showMessage('Error saat generate ayat: ' + (error.response?.data?.error || error.message), 'error');
+          } finally {
+            this.generatingSingle = false;
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+
